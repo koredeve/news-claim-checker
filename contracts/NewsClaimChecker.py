@@ -95,11 +95,18 @@ class NewsClaimChecker(gl.Contract):
 	def submit_claim(self, claim_id: str, text: str, context_url: str) -> None:
 		if gl.message.value < MIN_STAKE:
 			raise gl.vm.UserError(f"{ERROR_EXPECTED} Stake below minimum of 0.1 GEN")
-		if claim_id in self.claims:
+		clean_id = str(claim_id).strip()
+		clean_text = str(text).strip()
+		url = str(context_url).strip()
+		if not clean_id or not clean_text:
+			raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim id and text must not be empty")
+		if not url.startswith("https://"):
+			raise gl.vm.UserError(f"{ERROR_EXPECTED} Context URL must start with https://")
+		if clean_id in self.claims:
 			raise gl.vm.UserError(f"{ERROR_EXPECTED} Claim id already exists")
-		self.claims[claim_id] = Claim(
-			text=text,
-			context_url=context_url,
+		self.claims[clean_id] = Claim(
+			text=clean_text,
+			context_url=url,
 			reporter=gl.message.sender_address,
 			stake_atto=u256(gl.message.value),
 			status=STATUS_OPEN,
@@ -107,7 +114,7 @@ class NewsClaimChecker(gl.Contract):
 			confidence=u256(0),
 			reasoning="",
 		)
-		self.claim_ids.append(claim_id)
+		self.claim_ids.append(clean_id)
 
 	@gl.public.write
 	def verify(self, claim_id: str) -> None:

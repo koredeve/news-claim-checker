@@ -198,5 +198,18 @@ def test_withdraw_returns_credited_stake(direct_vm, direct_deploy, direct_alice)
     contract.withdraw()
     assert contract.credit_of(direct_alice) == 0
 
+
+def test_empty_claim_inputs_and_non_https_rejected(direct_vm, direct_deploy, direct_alice):
+    """Empty claim id, empty text, or non-HTTPS URLs are rejected."""
+    contract = _deploy(direct_deploy)
+    direct_vm.sender = direct_alice
+    direct_vm.value = STAKE
+
+    with direct_vm.expect_revert("must not be empty"):
+        contract.submit_claim("claim-bad", "   ", "https://news.example.com/page")
+
+    with direct_vm.expect_revert("Context URL must start with https://"):
+        contract.submit_claim("claim-bad-url", "Valid text", "http://insecure.example.com/page")
+
     with direct_vm.expect_revert("Nothing to withdraw"):
         contract.withdraw()
