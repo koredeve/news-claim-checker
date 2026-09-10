@@ -106,8 +106,8 @@ def test_unverifiable_verdict_keeps_stake_with_contract(
     assert contract.credit_of(direct_alice) == 0
 
 
-def test_false_verdict_credits_reporter(direct_vm, direct_deploy, direct_alice, direct_bob):
-    """Anyone can verify; a FALSE verdict still returns the stake to the reporter."""
+def test_false_verdict_forfeits_stake(direct_vm, direct_deploy, direct_alice, direct_bob):
+    """A FALSE verdict for debunked disinformation forfeits the stake to the contract (0 credit to reporter)."""
     contract = _deploy(direct_deploy)
     _submit_claim(direct_vm, contract, direct_alice)
 
@@ -122,7 +122,8 @@ def test_false_verdict_credits_reporter(direct_vm, direct_deploy, direct_alice, 
 
     verified = contract.get_claim("claim-1")
     assert verified["verdict"] == "FALSE"
-    assert contract.credit_of(direct_alice) == STAKE
+    # Reporter forfeits stake for submitting false claim
+    assert contract.credit_of(direct_alice) == 0
     assert contract.credit_of(direct_bob) == 0
 
 
@@ -213,3 +214,39 @@ def test_empty_claim_inputs_and_non_https_rejected(direct_vm, direct_deploy, dir
 
     with direct_vm.expect_revert("Nothing to withdraw"):
         contract.withdraw()
+
+
+def test_unvetted_domain_rejected(direct_vm, direct_deploy, direct_alice):
+    """Submissions from unvetted self-authored domains are strictly rejected on-chain."""
+    contract = _deploy(direct_deploy)
+    direct_vm.sender = direct_alice
+    direct_vm.value = STAKE
+
+    with direct_vm.expect_revert("not an approved authoritative news source"):
+        contract.submit_claim(
+            "claim-unvetted",
+            "Aliens landed on Earth.",
+            "https://my-self-authored-blog.xyz/aliens.html",
+        )
+    assert contract.total_claims() == 0
+
+
+def test_owner_manages_vetted_domains(direct_vm, direct_deploy, direct_alice, direct_bob):
+    """Owner can whitelist authoritative news domains; non-owners revert."""
+    direct_vm.sender = direct_alice
+    contract = _deploy(direct_deploy)
+
+    # Alice is deployer/owner
+    assert contract.is_vetted_domain("reuters.com") is True
+    assert contract.is_vetted_domain("apnews.com") is True
+    assert contract.is_vetted_domain("untrusted-domain.com") is False
+
+    with direct_vm.prank(direct_bob):
+        with direct_vm.expect_revert("Only owner"):
+            contract.add_vetted_domain("custom-news.org")
+
+    direct_vm.sender = direct_alice
+    contract.add_vetted_domain("custom-news.org")
+    assert contract.is_vetted_domain("custom-news.org") is True
+    assert contract.is_vetted_domain("edition.custom-news.org") is True
+

@@ -29,13 +29,23 @@ pip install -r requirements.txt
 
 | Method | Type | Notes |
 | --- | --- | --- |
-| `submit_claim(claim_id, text, context_url)` | write, payable | requires `value >= MIN_STAKE` (0.1 GEN); unique id |
-| `verify(claim_id)` | write | leader fetch + LLM verdict; validator reruns and must agree exactly; open claims only |
+| `owner()` | view | Contract owner (deployer), as string |
+| `is_vetted_domain(domain)` | view | Checks if a news domain is on the approved authoritative list |
+| `add_vetted_domain(domain)` | write | Owner-only; whitelists new authoritative news sources |
+| `submit_claim(claim_id, text, context_url)` | write, payable | requires `value >= MIN_STAKE` (0.1 GEN); unique id; enforces approved authoritative news domain |
+| `verify(claim_id)` | write | leader fetch + LLM verdict; validator reruns and must agree exactly; isolates web text as untrusted input; returns stake only on TRUE |
 | `withdraw()` | write | pays out accumulated credits to sender |
 | `get_claim(claim_id)` | view | full claim record; `reporter` as string |
 | `credit_of(who)` | view | withdrawable credit balance |
 | `total_claims()` | view | number of submitted claims |
 
-Verdicts: `TRUE` / `FALSE` / `MISLEADING` / `UNVERIFIABLE`.
+Verdicts: `TRUE` (refunds stake) / `FALSE` (forfeits stake) / `MISLEADING` (forfeits stake) / `UNVERIFIABLE` (forfeits stake).
+
+## Deployment
+
+- **Network**: StudioNet (GenLayer)
+- **Contract Address**: `0x79854d1c034EAc93AE0B6E4DE7566541a0DD38F9`
+- **Explorer**: [https://explorer-studio.genlayer.com/address/0x79854d1c034EAc93AE0B6E4DE7566541a0DD38F9](https://explorer-studio.genlayer.com/address/0x79854d1c034EAc93AE0B6E4DE7566541a0DD38F9)
 
 > **StudioNet note:** gasless network — 0 GEN balances are fine for testing.
+
